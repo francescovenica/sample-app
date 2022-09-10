@@ -130,6 +130,7 @@ type Account implements Node {
   email: String!
   createdAt: Datetime!
   updatedAt: Datetime!
+  role: String
 
   """Reads and enables pagination through a set of `Todo`."""
   todosByAuthorUuid(
@@ -443,6 +444,7 @@ input AccountInput {
   email: String!
   createdAt: Datetime
   updatedAt: Datetime
+  role: String
 }
 
 """The output of our create `Todo` mutation."""
@@ -546,6 +548,7 @@ input AccountPatch {
   email: String
   createdAt: Datetime
   updatedAt: Datetime
+  role: String
 }
 
 """All input for the `updateAccountByUuid` mutation."""

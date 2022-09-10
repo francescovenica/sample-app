@@ -57,8 +57,8 @@ const createApolloClient = (ctx): ApolloClient<NormalizedCacheObject> => {
          * we will send the cookie to our graphql endpoint that will convert
          * the cookie in the auth token
          */
-        ...(ctx.req.cookies?.session && {
-          authorization: `Bearer ${ctx?.req?.cookies?.session}`,
+        ...(ctx?.req?.cookies?.session && {
+          authorization: `Bearer ${ctx.req.cookies.session}`,
         }),
       },
     };
