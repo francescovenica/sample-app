@@ -7,10 +7,9 @@ This articles will have some code snippets/images to get a better experience in 
 We are going to use part of the code from the official NextJS repo `with-apollo`:
 https://github.com/vercel/next.js/tree/canary/examples/with-apollo
 
-We are going to use the `lib/apolloClient.js` file but we'll do some changes, the first one is to include an authenticatino link in order to add the Authentication token to the Authorization header, then will pass the down to all the function another parameter that we call `context`, this object contains the request object which we'll use to extract the session cookie and attach it to all our apollo requests. We'have added also a Batch link to be able to send multiple queries/mutation in one request:
+We are going to use the `lib/apolloClient.js` file but we'll do some changes, the first one is to include an authentication link in order to add the auth token to the Authorization header for all the request done by Apollo, then will pass the down to all the function another parameter that we call `context`, this object contains the request object which we'll use to extract the session cookie and attach it to all our apollo requests. We'have added also a Batch link to be able to send multiple queries/mutation in one request but this is optional:
 
 ```
-
 const createApolloClient = (ctx): ApolloClient<NormalizedCacheObject> => {
   ...
 
@@ -27,12 +26,13 @@ const createApolloClient = (ctx): ApolloClient<NormalizedCacheObject> => {
 
   const batchLink = new BatchHttpLink({
     uri: NEXT_PUBLIC_BASE_URL,
-    batchMax: 5, // No more than 5 operations per batch
-    batchInterval: 50, // Wait no more than 20ms after first batched operation
+    batchMax: 5,
+    batchInterval: 50,
   });
 
-
-  eturn new ApolloClient({
+  // Apollo use the id key to manage the cache, as we are using the key uuid we need to tell
+  // apollo to use this new key
+  return new ApolloClient({
     connectToDevTools: isBrowser,
     ssrMode: !isBrowser,
     link: ApolloLink.from([errorLink, authLink, batchLink]),
@@ -105,31 +105,34 @@ const UserContextWrapper = ({ value, children }: Props) => {
   const [authentication, setAuthentication] = useState<Authentication>(value);
 
   const completeLoginRegistration = async (credential: Credential, isLogin) => {
-    let signInResult;
-    const { email, password } = credential;
+        let firebaseResult;
+    const { email, password, ...rest } = credential;
 
     const auth = getAuth();
 
     if (isLogin) {
-      signInResult = await signInWithEmailAndPassword(auth, email, password);
+      firebaseResult = await signInWithEmailAndPassword(auth, email, password);
+      console.log("signInWithEmailAndPassword");
     } else {
-      signInResult = await createUserWithEmailAndPassword(
+      firebaseResult = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
     }
 
-    const idToken = await signInResult.user.getIdToken();
-    const res = await fetch("/api/auth/signup", {
+    const idToken = await firebaseResult.user.getIdToken();
+
+    const res = await fetch(`/api/auth/${isLogin ? "signin" : "signup"}`, {
       method: "POST",
       headers: {
-        authorization: idToken,
+        authorization: `Bearer ${idToken}`,
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, ...rest }),
     });
 
     const data = await res.json();
+
     setAuthentication((prev) => ({
       ...prev,
       account: data.account,
@@ -172,7 +175,7 @@ const UserContextWrapper = ({ value, children }: Props) => {
 export default UserContextWrapper;
 ```
 
-`signInWithEmailAndPassword` and `createUserWithEmailAndPassword` are firebase functions that let you login or ceate a new user in Firebase db. After login in Firebase we need to create or fetch the user from our db and create the session cookie to persist the user session, in order to do that we'll create an api endpoint in NextJS that will send a request to our api:
+`signInWithEmailAndPassword` and `createUserWithEmailAndPassword` are firebase functions that let you login or ceate a new user in Firebase. After login in Firebase we need to create or fetch the user from our db and create the session cookie to persist the user session, in order to do that we'll create an api endpoint in NextJS that will send a request to our api:
 
 ```
 const SignUp = async (req, res) => {
@@ -183,7 +186,7 @@ const SignUp = async (req, res) => {
   });
 
   const { authorization } = req.headers;
-  const { firstName = "", lastName = "" }: AccountInput = req.body;
+  const { firstName = "", lastName = "" }: AccountInput = JSON.parse(req.body);
 
   try {
     const session = await auth().verifyIdToken(authorization, true);
@@ -222,7 +225,7 @@ const SignUp = async (req, res) => {
 
       return res.json({
         session,
-        account: createAccount.account,
+        account: createAccount.account
       });
     }
   } catch (error) {
@@ -235,9 +238,21 @@ const SignUp = async (req, res) => {
 export default SignUp;
 ```
 
-in this code we initialise Apollo, we grab the authorization token, we create a session token, we send the mutation with the auth token, we create the cookie and then we return back the account and session object, these will be stored in the React context. If you look in the repo the `createAccount` mutation check if we already have a user with this email, if we have it we just return it without create anything. I'm sure you are trying to understand what `CreateAccountMutation`, `CreateAccountMutationVariables` and `CreateAccountDocument` are, these are 2 types and one GraphQl query autogenerated by Codegen, this tool is a very powerful tool that parse all the file searching for graphql mutation/queries and create types/hooks for all the mutation/queries, we can then use the in React, if you are interested you can give have a look to the `codegen.yml` file and the `generate` script in the package.json.
+in this code we:
 
-We can now create a form in the home page and create our first user:
+- initialise Apollo
+- grab the authorization token
+- we create a session token
+- we send the mutation with the auth token to create the user
+- we create the cookie and then we return back the account and the session object that will be stored in the React context.
+
+I'm sure you are trying to understand what `CreateAccountMutation`, `CreateAccountMutationVariables` and `CreateAccountDocument` are, these are 2 types and one GraphQl mutation autogenerated by Codegen, Codegen is a very powerful tool that parse all the files searching for graphql mutation/queries and create types/hooks for all of them, it also validate all the queries/mutation against the GraphQL schema, we can then use these in React, if you are interested you can give have a look to the `codegen.yml` file and the `generate` script in the package.json.
+
+If you check the repo you will see a very similar endpoint for signin, the only difference is that instead of sending the mutation to create an account we just fetch it.
+
+In this example we are not handling the case where the createAccount mutation fails, in that case we have an account in Firebase but not in our db so you will not be able to login, we can fix this in different ways but I'll let you think how we can fix it, maybe you can write your solution in the comments :)
+
+We can now create a page with 2 forms, one for signin and one for signup:
 
 ```
 const HomeContainer = () => {
@@ -261,9 +276,7 @@ const HomeContainer = () => {
 };
 ```
 
-this code is not 100% complete, to understand all the components I've used I suggest to check the repo where you can see everything.
-
-We can now create a new page for the todos, let's start with the server side part:
+I suggest you to have a look to the repo in order to understand how the components I've used works. You are now able to register a new user and login, I'm sure you are going the get an error after signup/signin as we are redirecting the user to the `todos` page that we don't have yet, let's create the page for the todos, we'll start from the server side:
 
 ```
 export const getServerSideProps = withAuth(
@@ -292,7 +305,9 @@ const TODO_QUERY = gql`
 `;
 ```
 
-the most intersting part of the code is `addApolloState`, this function is adding all the result of the query in the Apollo cache and this data can be then used in the client side of the app. Let's create the page:
+`withAuth` is a middleware that initialize apollo client and check for the session validity, look the repo to learn more about it, the first part of the code is something you already have seen, it's a simple query to fetch all the todos, the most intersting part of the code is `addApolloState`, this function adds the result in the Apollo cache that you will be able to use in the frontend.
+
+Now we need to create the frontend components:
 
 ```
 const TodoContainer = () => {
@@ -305,11 +320,14 @@ const TodoContainer = () => {
 
   const [createTodo] = useCreateTodoMutation();
 
-  const onSubmit = ({ uuid, ...todo }) => 
+  const onSubmit = ({ uuid, ...todo }) =>
     createTodo({
       variables: {
         input: {
-          todo,
+          todo: {
+            ...todo,
+            authorUuid: account.uuid,
+          },
         },
       },
     });
@@ -332,7 +350,9 @@ const TodoContainer = () => {
 };
 ```
 
-`useTodosQuery` will fetch all our todos, as you can see the fetch policy is `cache-only`, this because we already fetched the todos in the server side so we can just read the cache, the `nextFetchPolicy` is for all the future request, in that case we want don't want to use the cache as we want to have always fresh data, `notifyOnNetworkStatusChange` is very important as it will re-render the component everytime the network status change, so if we run a mutation to update a todo the hook will rerender the component with the new data. In order to update the UI we just need to add some more code, the below mutation have a new prop called `update` that will read the cache for the `TodosQuery` and it will append the result of the mutation to the list of todos rerendering the UI with the new todo:
+You have probably noticed that we are not passing the todos to our page component so in this moment we don't have any object containing the todos, the reason why we have done this is becuase we are going to fetch them again using `useTodosQuery` but instead of fetching from the api we'll fetch them against the Apollo cache. Doing this we can have the todos rendered on server side and at the same time have the data on our client side store. We are passing to the query hook also other 2 more arguments, `nextFetchPolicy` and `notifyOnNetworkStatusChange`, the first argument let the hook send any request after the first one with a cache policy set to `network-only`, so for all the next requests we are not going to use the cache again but we will fetch directly the api, `notifyOnNetworkStatusChange` is telling the hook to re-render the page if the network status change, this will be useful when we run a mutation becuase it will rerender the page at the end of the request.
+
+In this page we have added a form that on submit send a mutation to create a todo, if you try you will see that the UI wil remain the same without the new todo, in order to update the UI we just need to add some more code, the below mutation have a new prop called `update` that will read the cache for the `TodosQuery` and it will append the result of the mutation to the list of todos rerendering the UI with the new todo:
 
 ```
 const [createTodo] = useCreateTodoMutation({
@@ -373,15 +393,25 @@ simple right? We are able to create an item and update the UI without re-fetchin
   }
 ```
 
-using the hook in this way:
+using this hook:
 
 ```
   const [udpateTodo] = useUpdateTodoMutation();
+
+  const onSubmit = () =>
+    udpateTodo({
+      variables: {
+        input: {
+          uuid,
+          todoPatch: todo,
+        },
+      },
+    });
 ```
 
-the UI will update automatically without any other line of code. The important is to return the object in the mutation with the same fields we have in the query.
+the UI will update automatically without any other line of code. The important is to return the object in the mutation with the same fields we are returning in the initial query.
 
-Apollo give us also another way to update the UI when we create new object, in fact if other users can create/update todos in our account we probably want to have the last data without updating the cache, this is super simple as we can udpate the mutation in this way:
+Apollo give us also another way to update the UI when we create new object, in fact if other users can create/update todos in our account we probably want to have the last available data without updating the cache, this is super simple as we can tell the hook to refetch a query after we recieve the mutation response:
 
 ```
 const [createTodo] = useCreateTodoMutation({
@@ -395,7 +425,6 @@ const [createTodo] = useCreateTodoMutation({
 That's it! We have now a frontend with an authentication layer that can list and create todos.
 
 In the next part we will learn how to isolate data between different account! If you want to receive a notification when I create new content Follow me!
-
 
 Here the link to the Part 1 of the Tutorial
 Here the link to the Part 3 of the Tutorial

@@ -8,6 +8,8 @@ export const createAccount = async (
   context: PostGraphileContext,
   resolveInfo: any
 ) => {
+  console.log("args.input.account", args.input.account);
+
   /**
    * Let's check if the email has the right format
    */

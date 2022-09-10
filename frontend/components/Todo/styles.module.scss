@@ -1,0 +1,16 @@
+.todo {
+  margin-bottom: 40px;
+  .body {
+    .title {
+      margin-bottom: 5px;
+    }
+  }
+  .footer {
+    display: flex;
+    justify-content: space-between;
+
+    button {
+      width: 49%;
+    }
+  }
+}

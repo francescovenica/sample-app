@@ -1,0 +1,19 @@
+overwrite: true
+schema: "../api/schema.graphql"
+documents:
+  - "./graphql/**/*.(ts|tsx|graphql)"
+  - "./lib/**/*.(ts|tsx|graphql)"
+  - "./pages/**/*.(ts|tsx|graphql)"
+  - "!./generated/*"
+generates:
+  ./types/types.d.ts:
+    plugins:
+      - typescript
+      - typescript-operations
+    config:
+      noExport: true
+      constEnums: false
+      enumsAsTypes: true
+  ./generated/hooks.ts:
+    plugins:
+      - typescript-react-apollo
