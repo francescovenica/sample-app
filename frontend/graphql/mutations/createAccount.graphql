@@ -1,0 +1,10 @@
+mutation CreateAccount($input: CreateAccountInput!) {
+  createAccount(input: $input) {
+    account {
+      uuid
+      email
+      lastName
+      firstName
+    }
+  }
+}

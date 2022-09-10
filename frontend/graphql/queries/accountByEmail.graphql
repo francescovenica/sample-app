@@ -1,0 +1,8 @@
+query AccountByEmail($email: String!) {
+  accountByEmail(email: $email) {
+    uuid
+    email
+    lastName
+    firstName
+  }
+}

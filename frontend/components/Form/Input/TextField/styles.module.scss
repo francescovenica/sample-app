@@ -1,0 +1,13 @@
+.textField {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+
+  label {
+    margin-bottom: 2px;
+  }
+
+  input {
+    height: 30px;
+  }
+}

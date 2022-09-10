@@ -1,0 +1,15 @@
+mutation UpdateTodo($input: UpdateTodoByUuidInput!) {
+  updateTodoByUuid(input: $input) {
+    query {
+      allTodos {
+        nodes {
+          uuid
+          done
+          title
+          content
+          createdAt
+        }
+      }
+    }
+  }
+}

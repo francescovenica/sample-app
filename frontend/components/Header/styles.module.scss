@@ -1,0 +1,13 @@
+.header {
+  margin: 0 auto;
+  width: 1280px;
+  max-width: 90%;
+  padding: 20px;
+
+  display: flex;
+  justify-content: flex-end;
+
+  button {
+    margin-left: 10px;
+  }
+}

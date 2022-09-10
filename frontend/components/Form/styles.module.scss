@@ -1,0 +1,9 @@
+.form {
+  display: flex;
+  flex-direction: column;
+
+  .formFooter {
+    margin-top: 15px;
+    text-align: right;
+  }
+}
