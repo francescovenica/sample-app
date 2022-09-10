@@ -5,13 +5,15 @@ Hello! I'm Francesco and I'm a FullStack developer working mainly with Node/Reac
 In this tutorial we will create a new app from the api to the frontend using Postgres as database, NodeJS + Express + PostGraphile for the api and NextJS + Apollo for the frontend:
 
 - in the first part we will create the api
-- in the second we will create the frontend
-- in the last part we will speak about postgres data isolation
+- in the second part we will create the frontend
+- in the last part we will speak about data isolation
 
-This articles will have some code snippets/images to get a better experience in both desktop and mobile, if you want to see the full code you can find the link to the repo at the end of the guide.
+I'll take for granted that you have some experience with node, ts and a bit of knowledge on sql language.
+
+This article will have only some code snippet, if you want to see the full code you can find the link to the repo at the end of the guide.
 
 Let's start with the Api, why Postgraphile?
-Postgraphile is a very powerfull package that convert a Postgres database in a GraphQL schema creating all the necessary resolvers for us. Using Typescript and Codegen we are also able to get all the types with one simple script, cool right?
+Postgraphile is a very powerfull package that convert a Postgres database in a GraphQL schema creating all the necessary resolvers for us without N+1 issues when doing queries against the db. Using Typescript and Codegen we are also able to get all the types with one simple script, cool right?
 
 In order to create our GraphQL server we need to create the db first, let spin up a Postgres instance using docker:
 
@@ -71,7 +73,7 @@ we will explain why we need the `current_account_uuid` function in the last part
 
 ## Api
 
-I'll take for granted that you how expressjs works, after you create an express app we need to install postgraphile `npm i postgraphile`, once installed we can initialize it:
+After you create an express app we need to install postgraphile, run `npm i postgraphile`, once installed we need initialize it and add the middleware in our app.js:
 
 ```
 /*  src/middleware/postgraphile.ts  */
@@ -89,22 +91,45 @@ const app = express();
 app.use(postgraphile);
 ```
 
-where pool is the db pool created using the pg module. Let's run the application:
+where pool is the db pool created using the `pg` module. Let's run the application:
 `npm run dev`
 
-and open the following url:
+open the following url:
 `http://localhost:4001/graphiql`
 
-we will see a UI where we can run graphql queries or mutations, copy and pate this mutation in the editor and the click the play button:
+you will see a UI where you can run graphql queries or mutations, copy and pate this mutation in the editor and the click the play button:
 
-INSERISCI IMMAGINE
-
+```
+mutation MyMutation {
+  createAccount(
+    input: {
+      account: {
+        email: "email@email.com"
+        firstName: "Name"
+        lastName: "Suerame"
+      }
+    }
+  ) {
+    account {
+      uuid
+      email
+      firstName
+      lastName
+    }
+  }
+}
+```
 
 In the response you will see the account you just created. Great! We have a graphql server up and running with only few lines of code!
 
+Postgraphile  expose also another endpoint:
+`http://localhost:4001/graphql`
+
+this is the link we need to use when requesting something from our api.
+
 ### Resolver enhance
 
-In a real world this is not enough, in fact we will need to validate an input, or comunicate with third part services before or after saving an object in the db, etc...we will also need some custom queries or mutation that are not related to the db. With postgraphile we can easily do that with few lines of code, let's see how we can do it:
+In a real world this is not enough, in fact we will need to validate an input, or comunicate with third part services before or after saving an object in the db. We will also need some custom queries or mutation that are not related to the db. With postgraphile we can easily do that with few lines of code, let's see how we can do it:
 
 ```
 const WrapPlugin = makePluginByCombiningPlugins(
@@ -126,10 +151,8 @@ const WrapPlugin = makePluginByCombiningPlugins(
 );
 ```
 
-`createAccount` is a normal function that receive some params as input, the args input contains the input we are sending to the mutation, the context contains anything we add when we initialize postgraphile, you can see more info on this function at this link:
+`createAccount` is a normal function that receive some params as input (you can see the function below), the args input contains the input we are sending in the mutation, the context contains anything we've added when we initialized postgraphile, you can see more info on this function at this link:
 https://www.graphile.org/postgraphile/make-wrap-resolvers-plugin/
-
-
 
 ```
 const isEmail = (email: string) => {
@@ -176,7 +199,7 @@ If you try to rerun the createAccount mutation with a malformatted email you wil
 
 ### Schema extension
 
-If we want to add a new query/mutation not related to the database we need add something in the schema:
+If we want to add a new query/mutation not related to the database we need add some types/inputs and extends the query/mutation type in the schema:
 
 ```
 export const typeDefs = gql`
@@ -249,7 +272,7 @@ export default (req: Request, res: Response, next: NextFunction) => {
 };
 ```
 
-then we need to validate the authentication token:
+then we need to validate the authentication token using the `verifySessionCookie` function, if the second argument is `true` it will be a bit slower as it checks if the token has been revoked, if `false` it only check the validity of the token and it will be quicker becuase we don't need any additional network request:
 
 ```
 /* src/middleware/auth.ts */
@@ -285,7 +308,7 @@ export default app;
 
 ```
 
-If you try any query now you will only an error!
+If you try to open the graphiql page or if you try to run any query/mutation to the `/graphql` endpoint you will receive an error.
 
 In the second part we will develop the frontend and we will create a new user in order to use the api again!
 

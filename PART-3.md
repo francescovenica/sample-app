@@ -6,7 +6,7 @@ If you didn't read the previous part here you have the links.
 Part 1
 Part 2
 
-Before starting to explain the data isolation let's create 2 account and 2 todo in our db:
+Before starting to explain data isolation let's create 2 account and 2 todo in our db:
 
 ```
 INSERT INTO account (email, 'admin') VALUES ('email-1@email.com');
@@ -69,8 +69,8 @@ CREATE POLICY policy_admin ON account FOR ALL
 ```
 
 - the first thing we are doing here is to enable RLS in the `account` table 
-- then we need to limit `select/update/delete` (USING) for both the role only to the row where `current_account_email() = email` or `current_account_uuid() = uuid`
-- for the insert operation (WITH CHECK) we need only `current_account_email() = email`.
+- then we need to limit `select/update/delete` (`USING`) for both the role only to the row where `current_account_email() = email` or `current_account_uuid() = uuid`
+- for the insert operation (`WITH CHECK`) we need only `current_account_email() = email`.
 
 I'm sure you are asking to yourself what are these 2 functions (`current_account_uuid` and `current_account_email`), in our api we are going to set some variables (user uuid and user email) in the Postgress settings valid only for the current session, so each request can have different values, these values will be used in the queries for that particular request. I'm sure you are also asking to yourself what `USING` and `WITH CHECK` means, this is the syntax used by Postgress the understand which condition it has to use for `select/update/delete/create` you can find more info here: https://www.postgresql.org/docs/current/sql-createpolicy.html
 
@@ -209,13 +209,15 @@ export default postgraphile(pool, "public", {
 });
 ```
 
-as you can see the the current email we are using the session email if the account doesn't exists, this is necessary beacuse when we create a new user we don't have these values yet while the session is already created at this point and it will have the same email of the user in the db. We are also adding some object in Postgraphile context (`additionalGraphQLContextFromRequest`), these will be available in all the resolvers.
-
-Obviously there are a lot of other way to achieve the same result, for example we coul use only `"app.current_account_email": account?.email` and set this value again in the resolver where we create the user, but for this guide I wanted to keep everything as simple as possible.
+as you can see the for current email we are using the session email if the account doesn't exists, this is necessary beacuse when we create a new user we don't have these values yet while the session is already created at this point and it will have the same email of the user in the db. Without this we will be able to create the new user but we'll not be able to reas it and so we will ne be able to return the account in the response. We are also adding some object in Postgraphile context (`additionalGraphQLContextFromRequest`), these will be available in all the resolvers.
 
 Great! Now you have an app fully working from Api to the Frontend with an Authentication layer and with data isolation.
 
-If you found this tutorial useful Follow me so you will be notified for new content!
+
+With this tutorial I wanted to give just an input on how to start an application from scratch, there are a lot of area you would improve, error handling, logging, test coverage, input validation, etc...Let me know if you would be interested in an advanced tutorial on how to improve the application.
+
+
+If you found this tutorial useful Follow me so you will be notified for new content! If you have any question you just need to post it in the comments and I'll try to replay as best as I can :)
 
 Here the link to the Part 1 of the Tutorial
 Here the link to the Part 2 of the Tutorial
