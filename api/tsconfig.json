@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "target": "ES2019",
+    "lib": ["ES5", "ES6", "ESNext", "DOM", "ES2019"],
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "types": ["node"],
+    "typeRoots": ["src/types", "node_modules/@types"],
+    "moduleResolution": "node"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["**/dist/**", "node_modules"]
+}
